@@ -105,7 +105,7 @@
   <p>With these permissions My Friend <strong>cannot send, delete, or change your emails</strong>.</p>
 
   <h3>How it works</h3>
-  <p>You set up a Gmail filter that applies one of those labels to your bank's notification emails. When a labeled email arrives, Google notifies My Friend's server (through Google Cloud Pub/Sub), and the server fetches the new messages from Gmail, recognizes the supported banks' notifications, and extracts the transaction details. You can also trigger the same check yourself with "Check now". The full email is not saved to the database; only the details listed below are.</p>
+  <p>You set up a Gmail filter that applies one of those labels to your bank's notification emails. When a labeled email arrives, Google notifies My Friend's server (through Google Cloud Pub/Sub), and the server looks at what changed in your mailbox since its last check. <strong>Only emails carrying one of My Friend's bank labels are fetched; any other email in your mailbox is never read.</strong> From those labeled emails, the server recognizes the supported banks' notifications and extracts the transaction details. You can also trigger the same check yourself with "Check now". The full email is not saved; only the details listed below are.</p>
 
   <h3>What is stored, and where</h3>
   <p>Everything below is stored in Supabase (the app's database, United States — AWS us-east-1), in tables that only your account (or, where noted, only My Friend's server) can access:</p>
@@ -116,7 +116,7 @@
   </ul>
 
   <h3>Emails that can't be read</h3>
-  <p>If a bank notification can't be processed (for example, because the bank changed its email format), a troubleshooting record is kept so the problem can be fixed: the Gmail message ID, the time, and an error description. That description <strong>can include up to 300 characters of the email's raw content</strong> (which may contain the amount, date, merchant, or card's last 4 digits) and the specific values that couldn't be read. These records cannot be read from the app or by other users. They are kept until you ask for them to be deleted or your account is deleted; disconnecting Gmail does not remove them.</p>
+  <p>If a bank notification can't be processed (for example, because the bank changed its email format), a troubleshooting record is kept so the problem can be fixed: the Gmail message ID, the time, and a short technical description of what went wrong, such as which field couldn't be read. <strong>These records contain no email content.</strong> They cannot be read from the app or by other users, and they are <strong>deleted automatically after 30 days</strong>.</p>
 
   <h3>Your Gmail access token</h3>
   <p>When you connect, Google gives My Friend a refresh token that lets its server keep reading new notifications. The token is <strong>encrypted (AES-256-GCM) before it is stored</strong>, the encryption key is kept separately from the database, and the record cannot be read from the app. The token is <strong>never shared</strong> with anyone; it is only ever sent back to Google, to read your notifications or to revoke access.</p>
@@ -131,7 +131,7 @@
     <li>revokes My Friend's access with Google, so the refresh token stops working, and</li>
     <li>deletes the connection record, including the encrypted token.</li>
   </ul>
-  <p>You can also revoke access at any time from your Google Account at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. Disconnecting does not delete transactions that were already imported: approved ones are part of your own records, and pending or dismissed imports and troubleshooting records stay until you ask for them to be deleted.</p>
+  <p>You can also revoke access at any time from your Google Account at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. Disconnecting does not delete transactions that were already imported: approved ones are part of your own records, and pending or dismissed imports stay until you ask for them to be deleted. Troubleshooting records are deleted after 30 days either way.</p>
 
   <h3>Deleting imported data</h3>
   <p>To have your imported email data deleted (pending and dismissed imports, troubleshooting records, your ignored-cards list, and any remaining connection record), email <a href="mailto:hello.myfriendapp@outlook.com">hello.myfriendapp@outlook.com</a> from the address you use to sign in to My Friend. Transactions you already approved are ordinary entries in your accounts; you can delete them in the app, and they are removed along with the rest of your data if you delete your account.</p>
@@ -148,7 +148,7 @@
   <table>
     <tr><th>Service</th><th>Purpose</th><th>What it receives</th></tr>
     <tr><td>Supabase</td><td>Cloud database + authentication</td><td>Your email, hashed password, and the financial data you enter. If you connect Gmail: the imported transaction details, your Gmail address and encrypted access token, your ignored-cards list, and troubleshooting records (section 2)</td></tr>
-    <tr><td>Vercel</td><td>Hosts My Friend's server (Gmail connect, sync and disconnect; relays voice requests to OpenRouter)</td><td>Your app sign-in token, to verify requests. If you connect Gmail: the emails fetched from Gmail during a sync, processed in memory. If you use voice: the transcribed text plus category and account names, passed straight to OpenRouter</td></tr>
+    <tr><td>Vercel</td><td>Hosts My Friend's server (Gmail connect, sync and disconnect; relays voice requests to OpenRouter)</td><td>Your app sign-in token, to verify requests. If you connect Gmail: only the emails carrying My Friend's bank labels, processed in memory during a sync. If you use voice: the transcribed text plus category and account names, passed straight to OpenRouter. Server logs contain only technical identifiers (such as user and message IDs and error types), never email content</td></tr>
     <tr><td>Google (Gmail API and Cloud Pub/Sub)</td><td>Optional Gmail connection: the Gmail API is how the server reads the notification emails you authorized; Pub/Sub tells the server when new labeled mail arrives</td><td>Gmail API: requests made with your access token. Pub/Sub: only your Gmail address and a Gmail sync number — no email content</td></tr>
     <tr><td>OpenRouter</td><td>Optional AI voice feature</td><td>Only the transcribed text plus your category and account names — no people's names, no account identifiers, no balances, and never any Gmail data</td></tr>
     <tr><td>Apple Speech Recognition</td><td>Speech-to-text, only when on-device recognition is unavailable</td><td>Voice audio (only in that fallback case)</td></tr>
@@ -166,7 +166,7 @@
 
   <h2>6. Data retention</h2>
   <p>Your data is retained for as long as your account exists. If you delete your account or ask for your data to be deleted, your information is removed from the database. Some information may persist briefly in backups before being overwritten in the normal course of operation.</p>
-  <p>Gmail connection records are deleted as soon as you disconnect. Imported email transactions and troubleshooting records are kept until you ask for them to be deleted or delete your account (section 2).</p>
+  <p>Gmail connection records are deleted as soon as you disconnect. Troubleshooting records for emails that couldn't be processed are deleted automatically after 30 days. Imported email transactions are kept until you ask for them to be deleted or delete your account (section 2).</p>
 
   <h2>7. Your rights</h2>
   <p>Depending on where you live (for example under the EU/UK GDPR or California's CCPA), you may have the right to access, correct, delete, or export your personal data, and to object to or restrict certain processing. The app does not sell personal information. To exercise any of these rights, contact <a href="mailto:hello.myfriendapp@outlook.com">hello.myfriendapp@outlook.com</a>.</p>
